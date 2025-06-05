@@ -201,13 +201,13 @@
     .lightbox-image-container {
       width: 100%;
       height: 100%;
-      overflow: hidden;
       display: flex;
       align-items: center;
       justify-content: center;
       cursor: grab;
       position: relative;
       border-radius: 10px;
+      overflow: hidden;
     }
     
     .lightbox-image-container:active {
@@ -217,26 +217,22 @@
     .lightbox-image-container.zoomed {
       cursor: grab;
       overflow: auto;
-      align-items: flex-start;
-      justify-content: flex-start;
     }
     
     .lightbox-image {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
       border-radius: 10px;
       box-shadow: 0 20px 60px rgba(0,0,0,0.5);
-      transition: width 0.15s ease-out, height 0.15s ease-out;
+      transition: transform 0.15s ease-out;
+      transform-origin: center center;
       cursor: inherit;
       user-select: none;
       display: block;
-      object-fit: contain;
-    }
-    
-    .lightbox-image.zoomed {
-      cursor: inherit;
-      /* Remove constraints when zooming for unlimited size */
-      max-width: none;
-      max-height: none;
-      object-fit: none;
+      /* Add minimum dimensions when zoomed */
+      min-width: 100%;
+      min-height: 100%;
     }
     
     /* Controls positioned well outside the image */
@@ -577,62 +573,27 @@
     let currentImageIndex = 0;
     let currentGallery = [];
     let currentGalleryData = {};
-    let lightboxZoom = 100; // Start at 100% (nice display size)
-    let baseImageWidth = 0;
-    let baseImageHeight = 0;
+    let lightboxZoom = 1; // Always relative to the CSS-fitted size
     let isDragging = false;
     let startX, startY;
     let imageStartX, imageStartY;
     let zoomIndicatorTimeout;
 
-    // Calculate base display size (professional looking size)
-    function calculateBaseSize() {
-      const image = document.getElementById('lightbox-image');
-      const container = document.getElementById('lightbox-image-container');
-      
-      return new Promise((resolve) => {
-        const checkDimensions = () => {
-          if (image.complete && image.naturalWidth && image.naturalHeight) {
-            const containerWidth = container.clientWidth;
-            const containerHeight = container.clientHeight;
-            const imageWidth = image.naturalWidth;
-            const imageHeight = image.naturalHeight;
-            
-            // Calculate size to fit nicely in 85% of viewport
-            const maxWidth = containerWidth * 0.85;
-            const maxHeight = containerHeight * 0.85;
-            
-            const scaleX = maxWidth / imageWidth;
-            const scaleY = maxHeight / imageHeight;
-            const scale = Math.min(scaleX, scaleY);
-            
-            baseImageWidth = imageWidth * scale;
-            baseImageHeight = imageHeight * scale;
-            
-            resolve();
-          } else {
-            setTimeout(checkDimensions, 50);
-          }
-        };
-        checkDimensions();
-      });
-    }
-
-    // Smooth zoom with actual size changes (not transform)
+    // FIXED zoom functions
     function lightboxZoomIn() {
-      lightboxZoom = Math.min(lightboxZoom + 15, 1000); // 15% increments, max 1000%
+      lightboxZoom = Math.min(lightboxZoom * 1.15, 10); // 15% increment
       applyLightboxZoom();
       showZoomIndicator();
     }
 
     function lightboxZoomOut() {
-      lightboxZoom = Math.max(lightboxZoom - 15, 30); // 15% decrements, min 30%
+      lightboxZoom = Math.max(lightboxZoom / 1.15, 0.1); // 15% decrement
       applyLightboxZoom();
       showZoomIndicator();
     }
 
     function lightboxZoomReset() {
-      lightboxZoom = 100; // Reset to 100% (professional display size)
+      lightboxZoom = 1; // Back to CSS-fitted size
       applyLightboxZoom();
       showZoomIndicator();
     }
@@ -641,22 +602,30 @@
       const image = document.getElementById('lightbox-image');
       const container = document.getElementById('lightbox-image-container');
       
-      // Calculate actual pixel size based on zoom percentage
-      const currentWidth = (baseImageWidth * lightboxZoom) / 100;
-      const currentHeight = (baseImageHeight * lightboxZoom) / 100;
+      // Apply zoom transform
+      image.style.transform = `scale(${lightboxZoom})`;
       
-      // Apply actual width and height (not transform)
-      image.style.width = currentWidth + 'px';
-      image.style.height = currentHeight + 'px';
-      
-      // Add zoomed class when beyond baseline
-      if (lightboxZoom > 102) {
-        image.classList.add('zoomed');
+      if (lightboxZoom > 1.02) {
         container.classList.add('zoomed');
+        
+        // Use setTimeout to ensure the transform is applied before centering
+        setTimeout(() => {
+          // Get the actual dimensions after transform
+          const containerWidth = container.clientWidth;
+          const containerHeight = container.clientHeight;
+          const scaledImageWidth = image.offsetWidth * lightboxZoom;
+          const scaledImageHeight = image.offsetHeight * lightboxZoom;
+          
+          // Calculate center position
+          const centerX = Math.max(0, (scaledImageWidth - containerWidth) / 2);
+          const centerY = Math.max(0, (scaledImageHeight - containerHeight) / 2);
+          
+          // Center the image
+          container.scrollLeft = centerX;
+          container.scrollTop = centerY;
+        }, 0);
       } else {
-        image.classList.remove('zoomed');
         container.classList.remove('zoomed');
-        // Reset scroll position when back to baseline
         container.scrollLeft = 0;
         container.scrollTop = 0;
       }
@@ -675,10 +644,11 @@
 
     function updateZoomIndicator() {
       const indicator = document.getElementById('zoom-indicator');
-      indicator.textContent = lightboxZoom + '%';
+      const percentage = Math.round(lightboxZoom * 100);
+      indicator.textContent = percentage + '%';
     }
 
-    // Enhanced panning functionality
+    // Enhanced panning with proper scroll behavior
     function setupPanningHandlers() {
       const container = document.getElementById('lightbox-image-container');
       
@@ -687,19 +657,19 @@
       document.removeEventListener('mousemove', handlePanning);
       document.removeEventListener('mouseup', stopPanning);
       
-      // Add event listeners
+      // Add new listeners
       container.addEventListener('mousedown', startPanning);
       document.addEventListener('mousemove', handlePanning);
       document.addEventListener('mouseup', stopPanning);
       
-      // Touch events for mobile
+      // Touch support
       container.addEventListener('touchstart', startPanningTouch, { passive: false });
       document.addEventListener('touchmove', handlePanningTouch, { passive: false });
       container.addEventListener('touchend', stopPanning);
     }
 
     function startPanning(e) {
-      if (lightboxZoom <= 102) return; // Only allow panning when zoomed
+      if (lightboxZoom <= 1.02) return;
       
       isDragging = true;
       const container = document.getElementById('lightbox-image-container');
@@ -714,7 +684,7 @@
     }
 
     function handlePanning(e) {
-      if (!isDragging || lightboxZoom <= 102) return;
+      if (!isDragging || lightboxZoom <= 1.02) return;
       
       e.preventDefault();
       const container = document.getElementById('lightbox-image-container');
@@ -730,12 +700,12 @@
       if (isDragging) {
         isDragging = false;
         const container = document.getElementById('lightbox-image-container');
-        container.style.cursor = lightboxZoom > 102 ? 'grab' : 'grab';
+        container.style.cursor = lightboxZoom > 1.02 ? 'grab' : 'default';
       }
     }
 
     function startPanningTouch(e) {
-      if (lightboxZoom <= 102 || e.touches.length !== 1) return;
+      if (lightboxZoom <= 1.02 || e.touches.length !== 1) return;
       
       isDragging = true;
       const container = document.getElementById('lightbox-image-container');
@@ -750,7 +720,7 @@
     }
 
     function handlePanningTouch(e) {
-      if (!isDragging || lightboxZoom <= 102 || e.touches.length !== 1) return;
+      if (!isDragging || lightboxZoom <= 1.02 || e.touches.length !== 1) return;
       
       e.preventDefault();
       const container = document.getElementById('lightbox-image-container');
@@ -763,21 +733,18 @@
       container.scrollTop = imageStartY + deltaY;
     }
 
-    // Professional lightbox opening
     function openLightbox(index, gallery, galleryData) {
       currentImageIndex = index;
       currentGallery = gallery;
       currentGalleryData = galleryData;
-      lightboxZoom = 100; // Start at 100% (professional display size)
+      lightboxZoom = 1; // Always start at 100% (CSS-fitted size)
       const photo = gallery[index];
       
       const image = document.getElementById('lightbox-image');
       const container = document.getElementById('lightbox-image-container');
       
-      // Reset to initial state
-      image.style.width = '';
-      image.style.height = '';
-      image.classList.remove('zoomed');
+      // Reset everything to clean state
+      image.style.transform = 'scale(1)';
       container.classList.remove('zoomed');
       container.style.cursor = 'grab';
       container.scrollLeft = 0;
@@ -785,18 +752,12 @@
       
       image.src = `images/${photo.file}`;
       
-      image.onload = () => {
-        calculateBaseSize().then(() => {
-          applyLightboxZoom();
-          updateZoomIndicator();
-          setupPanningHandlers();
-        });
-      };
-      
       document.getElementById('lightbox').classList.add('visible');
       document.body.style.overflow = 'hidden';
       
       updateInfoPanel(photo);
+      setupPanningHandlers();
+      updateZoomIndicator();
     }
 
     function closeLightbox() {
@@ -804,15 +765,12 @@
       document.getElementById('info-panel').classList.remove('visible');
       document.body.style.overflow = 'auto';
       
-      // Reset zoom state
-      lightboxZoom = 100;
+      lightboxZoom = 1;
       
       const image = document.getElementById('lightbox-image');
       const container = document.getElementById('lightbox-image-container');
       
-      image.style.width = '';
-      image.style.height = '';
-      image.classList.remove('zoomed');
+      image.style.transform = 'scale(1)';
       container.classList.remove('zoomed');
     }
 
@@ -821,21 +779,19 @@
         currentImageIndex--;
         const photo = currentGallery[currentImageIndex];
         
-        // Reset to professional display for new image
-        lightboxZoom = 100;
+        // Reset zoom for new image
+        lightboxZoom = 1;
         const image = document.getElementById('lightbox-image');
         const container = document.getElementById('lightbox-image-container');
         
+        image.style.transform = 'scale(1)';
+        container.classList.remove('zoomed');
+        container.scrollLeft = 0;
+        container.scrollTop = 0;
+        
         image.src = `images/${photo.file}`;
-        
-        image.onload = () => {
-          calculateBaseSize().then(() => {
-            applyLightboxZoom();
-            updateZoomIndicator();
-          });
-        };
-        
         updateInfoPanel(photo);
+        updateZoomIndicator();
       }
     }
 
@@ -844,22 +800,115 @@
         currentImageIndex++;
         const photo = currentGallery[currentImageIndex];
         
-        // Reset to professional display for new image
-        lightboxZoom = 100;
+        // Reset zoom for new image
+        lightboxZoom = 1;
         const image = document.getElementById('lightbox-image');
         const container = document.getElementById('lightbox-image-container');
         
+        image.style.transform = 'scale(1)';
+        container.classList.remove('zoomed');
+        container.scrollLeft = 0;
+        container.scrollTop = 0;
+        
         image.src = `images/${photo.file}`;
-        
-        image.onload = () => {
-          calculateBaseSize().then(() => {
-            applyLightboxZoom();
-            updateZoomIndicator();
-          });
-        };
-        
         updateInfoPanel(photo);
+        updateZoomIndicator();
       }
+    }
+
+    // Mouse wheel zoom
+    function setupMouseWheelZoom() {
+      const container = document.getElementById('lightbox-image-container');
+      
+      container.addEventListener('wheel', function(e) {
+        if (document.getElementById('lightbox').classList.contains('visible')) {
+          e.preventDefault();
+          
+          if (e.deltaY < 0) {
+            lightboxZoom = Math.min(lightboxZoom * 1.07, 10);
+          } else {
+            lightboxZoom = Math.max(lightboxZoom / 1.07, 0.1);
+          }
+          
+          applyLightboxZoom();
+          showZoomIndicator();
+        }
+      });
+    }
+
+    // Initialize galleries from external data
+    function initializeGalleries() {
+      if (typeof galleryConfig === 'undefined') {
+        console.error('Gallery configuration not loaded. Make sure gallery-data.js is included.');
+        showToast('Failed to load gallery configuration', 'error');
+        return;
+      }
+
+      // Set page title
+      document.getElementById('page-title').textContent = galleryConfig.title;
+      document.getElementById('gallery-title').textContent = galleryConfig.title;
+
+      // Create gallery sections
+      const container = document.getElementById('gallery-container');
+      container.innerHTML = '';
+
+      galleryConfig.galleries.forEach(gallery => {
+        createGallerySection(container, gallery);
+        createGallery(gallery.id, gallery.photos);
+      });
+    }
+
+    function createGallerySection(container, gallery) {
+      const section = document.createElement('div');
+      section.classList.add('section');
+      
+      const title = document.createElement('h2');
+      title.textContent = gallery.name;
+      
+      const galleryDiv = document.createElement('div');
+      galleryDiv.classList.add('gallery');
+      galleryDiv.id = gallery.id;
+      
+      section.appendChild(title);
+      section.appendChild(galleryDiv);
+      container.appendChild(section);
+    }
+
+    function createGallery(galleryId, photos) {
+      const gallery = document.getElementById(galleryId);
+      if (!gallery) {
+        console.error(`Gallery element with id "${galleryId}" not found`);
+        return;
+      }
+      
+      gallery.innerHTML = '';
+      
+      photos.forEach((photo, index) => {
+        const wrapper = document.createElement('div');
+        wrapper.classList.add('image-wrapper');
+        wrapper.setAttribute('data-index', index);
+        wrapper.setAttribute('data-gallery', galleryId);
+        
+        const img = document.createElement('img');
+      img.src = `images/${photo.file}`;
+      img.alt = photo.title;
+        img.loading = 'lazy';
+        
+        const caption = document.createElement('div');
+        caption.classList.add('caption');
+      caption.textContent = photo.title;
+
+      wrapper.appendChild(img);
+      wrapper.appendChild(caption);
+        
+        // Open lightbox on click
+        wrapper.addEventListener('click', () => {
+          const galleryData = galleryConfig.galleries.find(g => g.id === galleryId);
+          openLightbox(index, galleryData.photos, galleryData);
+        });
+        
+        gallery.appendChild(wrapper);
+      });
     }
 
     function updateInfoPanel(photo) {
@@ -905,27 +954,6 @@
           gallery.style.setProperty('--columns', currentColumns + 1);
         });
       }
-    }
-
-    // Smooth mouse wheel zoom
-    function setupMouseWheelZoom() {
-      const container = document.getElementById('lightbox-image-container');
-      
-      container.addEventListener('wheel', function(e) {
-        if (document.getElementById('lightbox').classList.contains('visible')) {
-          e.preventDefault();
-          
-          // Smooth wheel zoom - 5% increments for fine control
-          if (e.deltaY < 0) {
-            lightboxZoom = Math.min(lightboxZoom + 5, 1000);
-          } else {
-            lightboxZoom = Math.max(lightboxZoom - 5, 30);
-          }
-          
-          applyLightboxZoom();
-          showZoomIndicator();
-        }
-      });
     }
 
     // Utility Functions

@@ -6,7 +6,7 @@ const galleryConfig = {
       id: "london-gallery",
       name: "Days in London",
       photos: [
-        { file: "london-1.jpg", title: "Rosetta Stone", description: "Lucas with the Rosetta Stone. The key that unlocked ancient Egyptian hieroglyphs, the Rosetta Stone is one of the Museum's most famous objects.",  group: "London" },
+      { file: "london-1.jpg", title: "Rosetta Stone", description: "Lucas with the Rosetta Stone. The key that unlocked ancient Egyptian hieroglyphs, the Rosetta Stone is one of the Museum's most famous objects.",  group: "London" },
       { file: "london-1b.jpg", title: "Hoa Hakananai'a", description: "Hoa Hakananai'a at the British Museum. Hoa Hakananai'a, meaning lost or stolen friend in the Rapa Nui language, is a basalt moai statue from Easter Island (Rapa Nui) that is now housed in the British Museum. The statue was taken from the island by British sailors in 1868 and is considered a masterpiece of Easter Island sculpture. It is known for its unique carvings on the back, including low-relief designs and petroglyphs.",  group: "London" },
       { file: "london-2.jpg", title: "Bust of Ramesses the Great", description: "This colossal bust is of the Egyptian pharaoh Ramesses II, who reigned from 1279–1213 BC. Weighing an incredible 7.5 tonnes, the bust was once part of a larger statue which sat in the Ramesseum, a temple in Thebes (modern Luxor) built by the pharaoh. Its decoration celebrated his military achievements and his close association with the creator god Amun-Ra. The press coverage of the bust's transportation to the UK is believed to have inspired the poet Shelley's favourite sonnet, Ozymandias.",  group: "London" },
       { file: "london-3.jpg", title: "Lucas and Family with his cousin Ana Julia", description: "This picture shows Lucas and his family with his cousin Ana Julia, she lives in London and is two years older than Clara",  group: "London" },
@@ -34,7 +34,7 @@ const galleryConfig = {
       id: "paris-gallery",
       name: "Days in Paris",
       photos: [
-        { file: "paris-1.jpg", title: "Evening at Montmatre", description: "", group: "Paris" },
+      { file: "paris-1.jpg", title: "Evening at Montmatre", description: "", group: "Paris" },
       { file: "paris-2.jpg", title: "Tuleries Garden Fountain", description: "", group: "Paris" },
       { file: "paris-3b.jpg", title: "Waiting to Go up, the Eiffel Tower", description: "", group: "Paris" },
       { file: "paris-3c.jpg", title: "Paris, a View from Above", description: "", group: "Paris" },
